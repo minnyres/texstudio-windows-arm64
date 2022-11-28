@@ -22,6 +22,8 @@ You need to install the following tools to build KeePassXC yourself.
 
 In Windows Terminal, set the "Command line" for "Developer PowerShell for VS 2022" by replacing `-host_arch=x64` with `-host_arch=arm64`.
 
+![terminal](https://user-images.githubusercontent.com/40790553/204278525-3034871a-4afb-49b3-84de-5b2398ba9434.png)
+
 ### Build 
 
 Open the "Developer PowerShell for VS 2022" in Windows Terminal. First install some dependencies via vcpkg:

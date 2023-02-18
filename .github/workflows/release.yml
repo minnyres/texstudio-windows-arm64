@@ -1,0 +1,209 @@
+name: Build for Windows ARM64
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build-windows-arm64:
+    name: Build
+    runs-on: windows-latest
+    env:
+      boost_path: "${{ github.workspace }}/../boost"
+      qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
+      poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
+      txs_version: "4.5.1"
+      qt_version: "6.4.2"
+      poppler_version: "23.02.0"
+      poppler_data_version: "0.4.12"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup devcmd
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - name: Install build tools
+        run: |
+          choco install ninja
+
+      - name: Build TexTablet
+        run: |
+          git clone https://github.com/stevenlovegrove/TexTablet.git
+          cd TexTablet
+          git apply ../textable-vs2022-dotnet48.patch
+          MSBuild /property:Configuration=Release /property:Platform=ARM64
+
+      # use the preinstalled vcpkg from image
+      # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md#package-management
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgDirectory: C:/vcpkg
+          doNotUpdateVcpkg: true  # the preinstalled vcpkg is updated regularly
+
+      - name: Install dependencies from vcpkg
+        run: |
+          # tell vcpkg to only build Release variants of the dependencies
+          New-Item `
+            -Path "${{ github.workspace }}" `
+            -Name "triplets_overlay" `
+            -ItemType Directory
+          Copy-Item `
+            "${{ env.RUNVCPKG_VCPKG_ROOT }}/triplets/arm64-windows.cmake" `
+            "${{ github.workspace }}/triplets_overlay/arm64-windows-release.cmake"
+          Add-Content `
+            "${{ github.workspace }}/triplets_overlay/arm64-windows-release.cmake" `
+            -Value "set(VCPKG_BUILD_TYPE release)"
+          # clear buildtrees after each package installation to reduce disk space requirements
+          $packages = `
+            "zlib:arm64-windows-release",
+            "lcms:arm64-windows-release",
+            "freetype:arm64-windows-release",
+            "openjpeg:arm64-windows-release",
+            "tiff:arm64-windows-release",
+            "libiconv:arm64-windows-release",
+            "libjpeg-turbo:arm64-windows-release"
+          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe upgrade `
+            --overlay-triplets="${{ github.workspace }}/triplets_overlay" `
+            --no-dry-run
+          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe install `
+            --overlay-triplets="${{ github.workspace }}/triplets_overlay" `
+            --clean-after-build `
+            $packages
+
+      - name: Install Qt (host x64)
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: "${{ env.qt_version }}"
+          modules: 'qtshadertools'
+          archives: 'qttools qtbase qtdeclarative'
+          set-env: 'false'
+          dir: 'C:'
+
+      - name: Install Qt (target arm64)
+        run: |
+          git clone https://github.com/qt/qt5.git qt6
+          cd qt6
+          git checkout "v${{ env.qt_version }}"
+          perl init-repository --module-subset=qtbase,qtsvg,qt5compat,qttools,qtdeclarative
+          ./configure -opensource -confirm-license -nomake tests -nomake examples `
+            -release -xplatform win32-arm64-msvc `
+            -prefix "${{ env.qt_path }}" -qt-host-path "C:/Qt/${{ env.qt_version }}/msvc2019_64" `
+            -system-zlib -system-freetype -system-libpng -system-libjpeg -no-openssl -schannel `
+            -qt-sqlite -sql-sqlite -no-sql-mysql -no-sql-odbc -no-sql-psql -- -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=arm64-windows-release 
+          cmake --build .
+          cmake --install .
+          # need to clear build here to reduce disk space usage
+          cd ..
+          rm -r -fo qt6
+
+      - name: Install boost
+        run: |
+          aria2c `
+            "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z" `
+            -d "${{ runner.temp }}" `
+            -o "boost.7z"
+          7z x "${{ runner.temp }}/boost.7z" -o"${{ github.workspace }}/.."
+          move "${{ github.workspace }}/../boost_*" "${{ env.boost_path }}"
+      
+      - name: Install poppler
+        run: |
+          $env:path = "${{ env.qt_path }}/bin;$env:path"
+          git clone --branch poppler-${{ env.poppler_version }} --depth 1 https://anongit.freedesktop.org/git/poppler/poppler.git
+          cd poppler
+          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.poppler_path }} -DCMAKE_BUILD_TYPE=Release -DENABLE_QT5=OFF -DENABLE_QT6=ON -DBOOST_ROOT="${{ env.boost_path }}" -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release .
+          cmake --build .
+          cmake --install .
+          cmake --build . --target clean
+
+      - name: Install poppler-data
+        run: |
+          aria2c https://poppler.freedesktop.org/poppler-data-${{ env.poppler_data_version }}.tar.gz
+          tar -xf poppler-data-${{ env.poppler_data_version }}.tar.gz
+          cd poppler-data-${{ env.poppler_data_version }}
+          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.poppler_path }} -DCMAKE_BUILD_TYPE=Release 
+          cmake --build .
+          cmake --install .
+
+      - name: Build TeXstudio
+        run: |
+          $env:path = "${{ env.qt_path }}/bin;$env:path"
+          git clone --branch ${{ env.txs_version }} --depth 1 https://github.com/texstudio-org/texstudio.git
+          cd texstudio
+          $cmakelist = Get-Content "CMakeLists.txt"
+          $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
+          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCMAKE_PREFIX_PATH=${{ env.poppler_path }} -DVCPKG_TARGET_TRIPLET=arm64-windows-release
+          cmake --build build
+
+      - name: Prepare build artifacts
+        run: |
+          mkdir upload
+          mkdir upload/config
+          mkdir upload/share
+          mkdir upload/TexTablet
+          copy texstudio/build/texstudio.exe upload
+          copy -r texstudio/utilities/dictionaries upload
+          copy -r texstudio/utilities/manual upload/help
+          copy texstudio/utilities/latex2e.css upload/help
+          copy texstudio/utilities/latex2e.html upload/help
+          copy -r texstudio/travis-ci/mxe/fonts upload/share
+          copy -r ${{ env.poppler_path }}/share/poppler upload/share
+          copy -r texstudio/templates upload
+          copy -r texstudio/translation upload/translations
+          copy texstudio/utilities/TexTablet/license.txt upload/TexTablet
+          copy texstudio/utilities/TexTablet/*.xsl upload/TexTablet
+          copy TexTablet/LatexTablet.net/bin/ARM64/Release/Interop.micautLib.dll upload/TexTablet
+          copy TexTablet/LatexTablet.net/bin/ARM64/Release/TeXTablet.exe upload/TexTablet
+          # copy Qt dlls
+          copy ${{ env.qt_path }}/bin/Qt6Core.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Core5Compat.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Concurrent.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6DBus.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Gui.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Network.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6PrintSupport.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Qml.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Svg.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Widgets.dll upload
+          copy ${{ env.qt_path }}/bin/Qt6Xml.dll upload
+          copy -r ${{ env.qt_path }}/plugins/iconengines upload
+          copy -r ${{ env.qt_path }}/plugins/networkinformation upload
+          copy -r ${{ env.qt_path }}/plugins/platforms upload
+          copy -r ${{ env.qt_path }}/plugins/styles upload
+          copy -r ${{ env.qt_path }}/plugins/imageformats upload
+          copy -r ${{ env.qt_path }}/plugins/tls upload
+          # copy poppler dlls
+          copy ${{ env.poppler_path }}/bin/poppler-qt6.dll upload
+          copy ${{ env.poppler_path }}/bin/poppler.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/zlib*.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/lcms*.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/freetype.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/tiff.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/jpeg*.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/libpng*.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/openjp*.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/bz2.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlidec.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlicommon.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/liblzma.dll upload
+          7z a -mx9 texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z *
+          mv texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z ..
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: texstudio_${{ env.txs_version }}_arm64
+          path: upload
+
+      - name: Batch release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z         

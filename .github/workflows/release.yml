@@ -192,8 +192,9 @@ jobs:
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlidec.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlicommon.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/liblzma.dll upload
-          7z a -mx9 texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z *
-          mv texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z ..
+          cd upload
+          7z a -mx9 texstudio_${{ env.txs_version }}_arm64.7z *
+          mv texstudio_${{ env.txs_version }}_arm64.7z ..
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
@@ -206,4 +207,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: texstudio-${{ env.txs_version }}-win-arm64-portable-qt6.7z         
+          files: texstudio_${{ env.txs_version }}_arm64.7z     

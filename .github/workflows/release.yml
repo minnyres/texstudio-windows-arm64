@@ -15,7 +15,7 @@ jobs:
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       txs_version: "4.6.0"
       qt_version: "6.5.2"
-      poppler_version: "23.04.0"
+      poppler_version: "23.07.0"
       poppler_data_version: "0.4.12"
 
     steps:

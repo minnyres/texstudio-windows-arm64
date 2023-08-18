@@ -13,7 +13,7 @@ jobs:
       boost_path: "${{ github.workspace }}/../boost"
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
-      txs_version: "4.6.0"
+      txs_version: "4.6.3"
       qt_version: "6.5.2"
       poppler_version: "23.07.0"
       poppler_data_version: "0.4.12"
@@ -136,6 +136,7 @@ jobs:
           $env:path = "${{ env.qt_path }}/bin;$env:path"
           git clone --branch ${{ env.txs_version }} --depth 1 https://github.com/texstudio-org/texstudio.git
           cd texstudio
+          git apply ../fix-attribute-format-printf.patch
           $cmakelist = Get-Content "CMakeLists.txt"
           $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
           cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCMAKE_PREFIX_PATH=${{ env.poppler_path }} -DVCPKG_TARGET_TRIPLET=arm64-windows-release

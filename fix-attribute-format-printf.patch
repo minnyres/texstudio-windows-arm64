@@ -1,0 +1,13 @@
+diff --git a/src/pdfviewer/synctex/synctex_parser_utils.h b/src/pdfviewer/synctex/synctex_parser_utils.h
+index 19ab779db..ccbfba45e 100644
+--- a/src/pdfviewer/synctex/synctex_parser_utils.h
++++ b/src/pdfviewer/synctex/synctex_parser_utils.h
+@@ -87,7 +87,7 @@ extern "C" {
+ #	endif
+ 
+ #	if defined(_MSC_VER)
+-#		define SYNCTEX_ATTRIBUTE_FORMAT_PRINTF(STRING_INDEX, FIRST_TO_CHECK) ATTRIBUTE_FORMAT_PRINTF(STRING_INDEX, FIRST_TO_CHECK)
++#		define SYNCTEX_ATTRIBUTE_FORMAT_PRINTF(STRING_INDEX, FIRST_TO_CHECK) // ATTRIBUTE_FORMAT_PRINTF(STRING_INDEX, FIRST_TO_CHECK)
+ #	else
+ #		define SYNCTEX_ATTRIBUTE_FORMAT_PRINTF(STRING_INDEX, FIRST_TO_CHECK) __attribute__((__format__ (__printf__, (STRING_INDEX), (FIRST_TO_CHECK))))
+ #	endif

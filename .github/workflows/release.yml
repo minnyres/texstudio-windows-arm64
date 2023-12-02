@@ -67,7 +67,8 @@ jobs:
             "openjpeg:arm64-windows-release",
             "tiff:arm64-windows-release",
             "libiconv:arm64-windows-release",
-            "libjpeg-turbo:arm64-windows-release"
+            "libjpeg-turbo:arm64-windows-release",
+            "curl:arm64-windows-release"
           ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe upgrade `
             --overlay-triplets="${{ github.workspace }}/triplets_overlay" `
             --no-dry-run
@@ -193,6 +194,7 @@ jobs:
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlidec.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlicommon.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/liblzma.dll upload
+          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/libcurl.dll upload
           cd upload
           7z a -mx9 texstudio_${{ env.txs_version }}_arm64.7z *
           mv texstudio_${{ env.txs_version }}_arm64.7z ..

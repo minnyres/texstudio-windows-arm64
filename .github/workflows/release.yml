@@ -13,9 +13,9 @@ jobs:
       boost_path: "${{ github.workspace }}/../boost"
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
-      txs_version: "4.6.3"
-      qt_version: "6.5.2"
-      poppler_version: "23.07.0"
+      txs_version: "4.7.0"
+      qt_version: "6.6.1"
+      poppler_version: "23.12.0"
       poppler_data_version: "0.4.12"
 
     steps:
@@ -94,7 +94,7 @@ jobs:
           ./configure -opensource -confirm-license -nomake tests -nomake examples `
             -release -xplatform win32-arm64-msvc `
             -prefix "${{ env.qt_path }}" -qt-host-path "C:/Qt/${{ env.qt_version }}/msvc2019_64" `
-            -system-zlib -system-freetype -system-libpng -system-libjpeg -no-openssl -schannel `
+            -system-zlib -system-freetype -system-libpng -system-libjpeg -schannel `
             -qt-sqlite -sql-sqlite -no-sql-mysql -no-sql-odbc -no-sql-psql -- -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=arm64-windows-release 
           cmake --build .

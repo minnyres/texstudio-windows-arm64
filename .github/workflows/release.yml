@@ -13,7 +13,7 @@ jobs:
       boost_path: "${{ github.workspace }}/../boost"
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
-      txs_version: "4.7.1"
+      txs_version: "4.7.2"
       qt_version: "6.6.1"
       poppler_version: "23.12.0"
       poppler_data_version: "0.4.12"
@@ -107,7 +107,7 @@ jobs:
       - name: Install boost
         run: |
           aria2c `
-            "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.7z" `
+            "https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.7z" `
             -d "${{ runner.temp }}" `
             -o "boost.7z"
           7z x "${{ runner.temp }}/boost.7z" -o"${{ github.workspace }}/.."

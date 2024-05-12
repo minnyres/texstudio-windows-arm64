@@ -154,7 +154,7 @@ jobs:
           copy -r texstudio/utilities/manual upload/help
           copy texstudio/utilities/latex2e.css upload/help
           copy texstudio/utilities/latex2e.html upload/help
-          copy -r texstudio/travis-ci/mxe/fonts upload/share
+          copy -r texstudio/utilities/fonts upload/share
           copy -r ${{ env.poppler_path }}/share/poppler upload/share
           copy -r texstudio/templates upload
           copy -r texstudio/translation upload/translations

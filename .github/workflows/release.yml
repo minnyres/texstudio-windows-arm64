@@ -2,8 +2,6 @@ name: Build for Windows ARM64
 
 on:
   push:
-    tags:
-    - '*'
 
 jobs:
   build-windows-arm64:
@@ -15,7 +13,7 @@ jobs:
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       txs_version: "4.8.0"
       qt_version: "6.7.0"
-      poppler_version: "24.05.0"
+      poppler_version: "24.02.0"
       poppler_data_version: "0.4.12"
 
     steps:
@@ -206,6 +204,7 @@ jobs:
           path: upload
 
       - name: Batch release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

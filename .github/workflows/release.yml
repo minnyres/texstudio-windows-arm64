@@ -11,8 +11,8 @@ jobs:
       boost_path: "${{ github.workspace }}/../boost"
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
-      txs_version: "4.8.0"
-      qt_version: "6.7.0"
+      txs_version: "4.8.1"
+      qt_version: "6.7.1"
       poppler_version: "24.02.0"
       poppler_data_version: "0.4.12"
 

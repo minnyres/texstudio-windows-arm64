@@ -114,7 +114,7 @@ jobs:
       - name: Install poppler
         run: |
           $env:path = "${{ env.qt_path }}/bin;$env:path"
-          git clone --branch poppler-${{ env.poppler_version }} --depth 1 https://anongit.freedesktop.org/git/poppler/poppler.git
+          git clone --branch poppler-${{ env.poppler_version }} --depth 1 https://gitlab.freedesktop.org/poppler/poppler
           cd poppler
           cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.poppler_path }} -DCMAKE_BUILD_TYPE=Release -DENABLE_GPGME=OFF -DENABLE_NSS3=OFF -DENABLE_QT5=OFF -DENABLE_QT6=ON -DBOOST_ROOT="${{ env.boost_path }}" -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release .
           cmake --build .

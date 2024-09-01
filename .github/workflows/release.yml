@@ -11,10 +11,12 @@ jobs:
       boost_path: "${{ github.workspace }}/../boost"
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
+      quazip_path: "${{ github.workspace }}/../quazip-msvc-arm64"
       txs_version: "4.8.2"
       qt_version: "6.7.2"
       poppler_version: "24.08.0"
       poppler_data_version: "0.4.12"
+      quazip_version: '1.4'
 
     steps:
       - name: Checkout repository
@@ -130,6 +132,15 @@ jobs:
           cmake --build .
           cmake --install .
 
+      - name: Install quazip
+        run: |
+          $env:path = "${{ env.qt_path }}/bin;$env:path"
+          git clone --branch v${{ env.quazip_version }} --depth 1 https://github.com/stachenov/quazip
+          cd quazip
+          cmake -B build -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.quazip_path }} -DCMAKE_BUILD_TYPE=Release -DQUAZIP_QT_MAJOR_VERSION=6 -DBUILD_SHARED_LIBS=ON -DQUAZIP_ENABLE_TESTS=OFF -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release
+          cmake --build build --config Release
+          cmake --install build
+
       - name: Build TeXstudio
         run: |
           $env:path = "${{ env.qt_path }}/bin;$env:path"
@@ -138,7 +149,7 @@ jobs:
           git apply ../fix-attribute-format-printf.patch
           $cmakelist = Get-Content "CMakeLists.txt"
           $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
-          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCMAKE_PREFIX_PATH=${{ env.poppler_path }} -DVCPKG_TARGET_TRIPLET=arm64-windows-release
+          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCMAKE_PREFIX_PATH="${{ env.poppler_path }};${{ env.quazip_path }}" -DVCPKG_TARGET_TRIPLET=arm64-windows-release
           cmake --build build
 
       - name: Prepare build artifacts

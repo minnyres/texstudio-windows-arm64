@@ -29,7 +29,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          choco install ninja
+          choco install ninja pkgconfiglite
 
       - name: Build TexTablet
         run: |
@@ -192,6 +192,7 @@ jobs:
           # copy poppler dlls
           copy ${{ env.poppler_path }}/bin/poppler-qt6.dll upload
           copy ${{ env.poppler_path }}/bin/poppler.dll upload
+          copy ${{ env.quazip_path }}/bin/quazip*.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/zlib*.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/lcms*.dll upload
           copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/freetype.dll upload

@@ -12,9 +12,9 @@ jobs:
       qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       quazip_path: "${{ github.workspace }}/../quazip-msvc-arm64"
-      txs_version: "4.8.2"
-      qt_version: "6.7.2"
-      poppler_version: "24.08.0"
+      txs_version: "4.8.4"
+      qt_version: "6.7.3"
+      poppler_version: "24.09.0"
       poppler_data_version: "0.4.12"
       quazip_version: '1.4'
 

@@ -13,7 +13,7 @@ jobs:
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       quazip_path: "${{ github.workspace }}/../quazip-msvc-arm64"
       txs_version: "4.8.5"
-      qt_version: "6.8.1"
+      qt_version: "6.7.3"
       poppler_version: "24.12.0"
       poppler_data_version: "0.4.12"
       quazip_version: '1.4'
@@ -78,10 +78,10 @@ jobs:
             $packages
 
       - name: Install Qt (host x64)
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: "${{ env.qt_version }}"
-          modules: 'qtshadertools'
+          modules: 'qtshadertools qtactiveqt'
           archives: 'qttools qtbase qtdeclarative'
           set-env: 'false'
           dir: 'C:'

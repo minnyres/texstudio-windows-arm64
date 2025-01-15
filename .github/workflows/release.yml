@@ -8,15 +8,9 @@ jobs:
     name: Build
     runs-on: windows-latest
     env:
-      boost_path: "${{ github.workspace }}/../boost"
-      qt_path: "${{ github.workspace }}/../qt-msvc-arm64"
-      poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
-      quazip_path: "${{ github.workspace }}/../quazip-msvc-arm64"
       txs_version: "4.8.5"
-      qt_version: "6.7.3"
-      poppler_version: "24.09.0"
+      poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       poppler_data_version: "0.4.12"
-      quazip_version: '1.4'
 
     steps:
       - name: Checkout repository
@@ -38,90 +32,45 @@ jobs:
           git apply ../textable-vs2022-dotnet48.patch
           MSBuild /property:Configuration=Release /property:Platform=ARM64
 
-      # use the preinstalled vcpkg from image
-      # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md#package-management
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v10
+      - name: Fetch texstudio sources
+        run: |
+          git clone --branch ${{ env.txs_version }} --depth 1 https://github.com/texstudio-org/texstudio.git
+          cp ${{ github.workspace }}/vcpkg.json texstudio
+          cd texstudio
+          git apply ../fix-attribute-format-printf.patch
+          $cmakelist = Get-Content "CMakeLists.txt"
+          $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
+
+      - uses: johnwason/vcpkg-action@v6
+        id: vcpkg
         with:
-          vcpkgDirectory: C:/vcpkg
-          doNotUpdateVcpkg: true  # the preinstalled vcpkg is updated regularly
+          # The vcpkg target triplet to use. This must be set. For windows, 
+          # x64-windows-release is recommended if you don't need debug libraries
+          triplet: 'arm64-windows-release'
+          # Extra arguments to pass to vcpkg command (optional)
+          extra-args: '--clean-after-build --host-triplet=x64-windows-release --overlay-triplets=${{ github.workspace }} --x-buildtrees-root=d:/vcpkg/b' 
+          # Additional string to add to cache key. If using a build matrix or building different configurations
+          # on the same operating system, be sure to include an additional cache key to separate the caches. (optional)
+          cache-key: 'poppler-qt6-windows-arm64'
+          # vcpkg revision to checkout
+          # A valid git ref; if empty, it defaults to the latest vcpkg stable release.
+          revision: 'b322364f06308bdd24823f9d8f03fe0cc86fd46f'
+          # GitHub token to authenticate API requests. This is necessary to determine vcpkg version to checkout
+          # Recommended to use ${{ github.token }}
+          token: '${{ github.token }}'
+          # Directory containing vcpkg.json manifest file. Cannot be used with pkgs.
+          manifest-dir: '${{ github.workspace }}/texstudio'
+          # "Use vcpkg built-in GitHub binary caching if "true". If not specified, will use the dry-run based file cache."
+          # Recommended set to "true"
+          github-binarycache: 'true'
+          #Fetch depth for vcpkg checkout. Defaults to "1"
+          fetch-depth: '1'
 
-      - name: Install dependencies from vcpkg
-        run: |
-          # tell vcpkg to only build Release variants of the dependencies
-          New-Item `
-            -Path "${{ github.workspace }}" `
-            -Name "triplets_overlay" `
-            -ItemType Directory
-          Copy-Item `
-            "${{ env.RUNVCPKG_VCPKG_ROOT }}/triplets/arm64-windows.cmake" `
-            "${{ github.workspace }}/triplets_overlay/arm64-windows-release.cmake"
-          Add-Content `
-            "${{ github.workspace }}/triplets_overlay/arm64-windows-release.cmake" `
-            -Value "set(VCPKG_BUILD_TYPE release)"
-          # clear buildtrees after each package installation to reduce disk space requirements
-          $packages = `
-            "zlib:arm64-windows-release",
-            "lcms:arm64-windows-release",
-            "freetype:arm64-windows-release",
-            "openjpeg:arm64-windows-release",
-            "tiff:arm64-windows-release",
-            "libiconv:arm64-windows-release",
-            "libjpeg-turbo:arm64-windows-release",
-            "curl:arm64-windows-release"
-          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe upgrade `
-            --overlay-triplets="${{ github.workspace }}/triplets_overlay" `
-            --no-dry-run
-          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe install `
-            --overlay-triplets="${{ github.workspace }}/triplets_overlay" `
-            --clean-after-build `
-            $packages
-
-      - name: Install Qt (host x64)
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "${{ env.qt_version }}"
-          modules: 'qtshadertools qtactiveqt'
-          archives: 'qttools qtbase qtdeclarative'
-          set-env: 'false'
-          dir: 'C:'
-
-      - name: Install Qt (target arm64)
-        run: |
-          git clone https://github.com/qt/qt5.git qt6
-          cd qt6
-          git checkout "v${{ env.qt_version }}"
-          perl init-repository --module-subset=qtbase,qtsvg,qt5compat,qttools,qtdeclarative
-          ./configure -opensource -confirm-license -nomake tests -nomake examples `
-            -release -xplatform win32-arm64-msvc `
-            -prefix "${{ env.qt_path }}" -qt-host-path "C:/Qt/${{ env.qt_version }}/msvc2019_64" `
-            -system-zlib -system-freetype -system-libpng -system-libjpeg -schannel `
-            -qt-sqlite -sql-sqlite -no-sql-mysql -no-sql-odbc -no-sql-psql -- -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=arm64-windows-release 
-          cmake --build .
-          cmake --install .
-          # need to clear build here to reduce disk space usage
-          cd ..
-          rm -r -fo qt6
-
-      - name: Install boost
-        run: |
-          aria2c `
-            "https://boostorg.jfrog.io/artifactory/main/release/1.86.0/source/boost_1_86_0.7z" `
-            -d "${{ runner.temp }}" `
-            -o "boost.7z"
-          7z x "${{ runner.temp }}/boost.7z" -o"${{ github.workspace }}/.."
-          move "${{ github.workspace }}/../boost_*" "${{ env.boost_path }}"
-      
-      - name: Install poppler
-        run: |
-          $env:path = "${{ env.qt_path }}/bin;$env:path"
-          git clone --branch poppler-${{ env.poppler_version }} --depth 1 https://gitlab.freedesktop.org/poppler/poppler
-          cd poppler
-          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.poppler_path }} -DCMAKE_BUILD_TYPE=Release -DENABLE_GPGME=OFF -DENABLE_NSS3=OFF -DENABLE_QT5=OFF -DENABLE_QT6=ON -DBOOST_ROOT="${{ env.boost_path }}" -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release .
-          cmake --build .
-          cmake --install .
-          cmake --build . --target clean
+      - name: Build TeXstudio
+        run: |   
+          cd texstudio 
+          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release -DVCPKG_MANIFEST_MODE=ON -DVCPKG_INSTALL_OPTIONS="--clean-after-build;--host-triplet=x64-windows-release;--overlay-triplets=${{ github.workspace }}"
+          cmake --build build
 
       - name: Install poppler-data
         run: |
@@ -131,26 +80,6 @@ jobs:
           cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.poppler_path }} -DCMAKE_BUILD_TYPE=Release 
           cmake --build .
           cmake --install .
-
-      - name: Install quazip
-        run: |
-          $env:path = "${{ env.qt_path }}/bin;$env:path"
-          git clone --branch v${{ env.quazip_version }} --depth 1 https://github.com/stachenov/quazip
-          cd quazip
-          cmake -B build -G "Ninja" -DCMAKE_INSTALL_PREFIX=${{ env.quazip_path }} -DCMAKE_BUILD_TYPE=Release -DQUAZIP_QT_MAJOR_VERSION=6 -DBUILD_SHARED_LIBS=ON -DQUAZIP_ENABLE_TESTS=OFF -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release
-          cmake --build build --config Release
-          cmake --install build
-
-      - name: Build TeXstudio
-        run: |
-          $env:path = "${{ env.qt_path }}/bin;$env:path"
-          git clone --branch ${{ env.txs_version }} --depth 1 https://github.com/texstudio-org/texstudio.git
-          cd texstudio
-          git apply ../fix-attribute-format-printf.patch
-          $cmakelist = Get-Content "CMakeLists.txt"
-          $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
-          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCMAKE_PREFIX_PATH="${{ env.poppler_path }};${{ env.quazip_path }}" -DVCPKG_TARGET_TRIPLET=arm64-windows-release
-          cmake --build build
 
       - name: Prepare build artifacts
         run: |
@@ -171,41 +100,30 @@ jobs:
           copy texstudio/utilities/TexTablet/*.xsl upload/TexTablet
           copy TexTablet/LatexTablet.net/bin/ARM64/Release/Interop.micautLib.dll upload/TexTablet
           copy TexTablet/LatexTablet.net/bin/ARM64/Release/TeXTablet.exe upload/TexTablet
-          # copy Qt dlls
-          copy ${{ env.qt_path }}/bin/Qt6Core.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Core5Compat.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Concurrent.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6DBus.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Gui.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Network.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6PrintSupport.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Qml.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Svg.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Widgets.dll upload
-          copy ${{ env.qt_path }}/bin/Qt6Xml.dll upload
-          copy -r ${{ env.qt_path }}/plugins/iconengines upload
-          copy -r ${{ env.qt_path }}/plugins/networkinformation upload
-          copy -r ${{ env.qt_path }}/plugins/platforms upload
-          copy -r ${{ env.qt_path }}/plugins/styles upload
-          copy -r ${{ env.qt_path }}/plugins/imageformats upload
-          copy -r ${{ env.qt_path }}/plugins/tls upload
-          # copy poppler dlls
-          copy ${{ env.poppler_path }}/bin/poppler-qt6.dll upload
-          copy ${{ env.poppler_path }}/bin/poppler.dll upload
-          copy ${{ env.quazip_path }}/bin/quazip*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/zlib*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/lcms*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/freetype.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/tiff.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/jpeg*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/libpng*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/openjp*.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/bz2.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlidec.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/brotlicommon.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/liblzma.dll upload
-          copy ${{ env.RUNVCPKG_VCPKG_ROOT }}/installed/arm64-windows-release/bin/libcurl.dll upload
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: p7zip mingw-w64-ucrt-x86_64-ntldd
+
+      - name: copy dlls in MSYS2
+        shell: msys2 {0}
+        run: |
+          package_dir=$PWD/vcpkg/installed/arm64-windows-release
+          PATH=$PATH:$package_dir/bin
           cd upload
+          ntldd -R texstudio.exe | awk '{print $3}'| grep vcpkg  | sed 's|\\|/|g' | xargs -I{} cp -u {} .
+          mkdir tls
+          mkdir styles
+          mkdir platforms
+          mkdir imageformats
+          mkdir iconengines
+          cp $package_dir/Qt6/plugins/tls/*.dll tls
+          cp $package_dir/Qt6/plugins/styles/qmodernwindowsstyle.dll styles
+          cp $package_dir/Qt6/plugins/platforms/qwindows.dll platforms
+          cp $package_dir/Qt6/plugins/imageformats/*.dll imageformats
+          cp $package_dir/Qt6/plugins/iconengines/*.dll iconengines
           7z a -mx9 texstudio_${{ env.txs_version }}_arm64.7z *
           mv texstudio_${{ env.txs_version }}_arm64.7z ..
 

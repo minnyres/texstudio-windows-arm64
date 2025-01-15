@@ -1,0 +1,51 @@
+{
+    "name": "texstudio",
+    "dependencies": [
+        {
+            "name": "poppler",
+            "features": [
+                "cms",
+                "curl",
+                "qt",
+                "zlib",
+                "cairo"
+            ],
+            "default-features": false
+        },
+        {
+            "name": "qtbase",
+            "features": [
+                "concurrent",
+                "dbus",
+                "dnslookup",
+                "doubleconversion",
+                "freetype",
+                "gui",
+                "harfbuzz",
+                "jpeg",
+                "network",
+                "pcre2",
+                "png",
+                "thread",
+                "widgets"
+
+            ],
+            "default-features": false
+        },
+        {
+            "name": "qtsvg"
+        },
+        {
+            "name": "qttools"
+        },
+        {
+            "name": "qt5compat"
+        },
+        {
+            "name": "qtdeclarative"
+        },
+        {
+            "name": "quazip"
+        }
+    ]
+}

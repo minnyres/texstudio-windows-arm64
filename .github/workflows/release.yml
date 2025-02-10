@@ -8,7 +8,7 @@ jobs:
     name: Build
     runs-on: windows-latest
     env:
-      txs_version: "4.8.5"
+      txs_version: "4.8.6"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       poppler_data_version: "0.4.12"
 
@@ -111,9 +111,8 @@ jobs:
         shell: msys2 {0}
         run: |
           package_dir=$PWD/vcpkg/installed/arm64-windows-release
-          PATH=$PATH:$package_dir/bin
           cd upload
-          ntldd -R texstudio.exe | awk '{print $3}'| grep vcpkg  | sed 's|\\|/|g' | xargs -I{} cp -u {} .
+          ntldd -R --search-dir $package_dir/bin texstudio.exe | awk '{print $3}'| grep vcpkg  | sed 's|\\|/|g' | xargs -I{} cp -u {} .
           mkdir tls
           mkdir styles
           mkdir platforms

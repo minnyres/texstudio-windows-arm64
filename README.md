@@ -6,3 +6,6 @@ Please go to [releases](https://github.com/minnyres/texstudio-windows-arm64/rele
 ## How to build
 
 TeXstudio for Windows ARM64 is cross compiled on Windows x64 hosts. We are using Github actions to automatically build and release the binaries.
+
+## See also
+TeX Live 2025 binaries for WoA is available at [minnyres/texlive-windows-arm64](https://github.com/minnyres/texlive-windows-arm64).

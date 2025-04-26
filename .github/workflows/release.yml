@@ -8,7 +8,7 @@ jobs:
     name: Build
     runs-on: windows-latest
     env:
-      txs_version: "4.8.6"
+      txs_version: "4.8.7"
       poppler_path: "${{ github.workspace }}/../poppler-msvc-arm64"
       poppler_data_version: "0.4.12"
 

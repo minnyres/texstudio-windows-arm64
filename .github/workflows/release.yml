@@ -32,44 +32,22 @@ jobs:
           git apply ../textable-vs2022-dotnet48.patch
           MSBuild /property:Configuration=Release /property:Platform=ARM64
 
-      - name: Fetch texstudio sources
-        run: |
+      - name: Setup a new (or from cache) vcpkg (and does not build any package)
+        uses: lukka/run-vcpkg@v11 # Always specify the specific _version_ of the
+                                  # action you need, `v11` in this case to stay up
+                                  # to date with fixes on the v11 branch
+        with:
+          vcpkgGitCommitId: 'ce613c41372b23b1f51333815feb3edd87ef8a8b'
+
+      - name: Build TeXstudio
+        run: |   
           git clone --branch ${{ env.txs_version }} --depth 1 https://github.com/texstudio-org/texstudio.git
           cp ${{ github.workspace }}/vcpkg.json texstudio
           cd texstudio
           git apply ../fix-attribute-format-printf.patch
           $cmakelist = Get-Content "CMakeLists.txt"
           $cmakelist | Select-String -Pattern 'Wno-deprecated-declarations' -NotMatch | Set-Content "CMakeLists.txt"
-
-      - uses: johnwason/vcpkg-action@v6
-        id: vcpkg
-        with:
-          # The vcpkg target triplet to use. This must be set. For windows, 
-          # x64-windows-release is recommended if you don't need debug libraries
-          triplet: 'arm64-windows-release'
-          # Extra arguments to pass to vcpkg command (optional)
-          extra-args: '--clean-after-build --host-triplet=x64-windows-release --overlay-triplets=${{ github.workspace }} --x-buildtrees-root=d:/vcpkg/b' 
-          # Additional string to add to cache key. If using a build matrix or building different configurations
-          # on the same operating system, be sure to include an additional cache key to separate the caches. (optional)
-          cache-key: 'poppler-qt6-windows-arm64'
-          # vcpkg revision to checkout
-          # A valid git ref; if empty, it defaults to the latest vcpkg stable release.
-          revision: 'b322364f06308bdd24823f9d8f03fe0cc86fd46f'
-          # GitHub token to authenticate API requests. This is necessary to determine vcpkg version to checkout
-          # Recommended to use ${{ github.token }}
-          token: '${{ github.token }}'
-          # Directory containing vcpkg.json manifest file. Cannot be used with pkgs.
-          manifest-dir: '${{ github.workspace }}/texstudio'
-          # "Use vcpkg built-in GitHub binary caching if "true". If not specified, will use the dry-run based file cache."
-          # Recommended set to "true"
-          github-binarycache: 'true'
-          #Fetch depth for vcpkg checkout. Defaults to "1"
-          fetch-depth: '1'
-
-      - name: Build TeXstudio
-        run: |   
-          cd texstudio 
-          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release -DVCPKG_MANIFEST_MODE=ON -DVCPKG_INSTALL_OPTIONS="--clean-after-build;--host-triplet=x64-windows-release;--overlay-triplets=${{ github.workspace }}"
+          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ env.RUNVCPKG_VCPKG_ROOT }}\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows-release -DVCPKG_MANIFEST_MODE=ON -DVCPKG_INSTALL_OPTIONS="--clean-after-build;--host-triplet=x64-windows-release;--overlay-triplets=${{ github.workspace }};--x-buildtrees-root=d:/vcpkg/b"
           cmake --build build
 
       - name: Install poppler-data
@@ -110,7 +88,7 @@ jobs:
       - name: copy dlls in MSYS2
         shell: msys2 {0}
         run: |
-          package_dir=$PWD/vcpkg/installed/arm64-windows-release
+          package_dir=$PWD/texstudio/vcpkg/installed/arm64-windows-release
           cd upload
           ntldd -R --search-dir $package_dir/bin texstudio.exe | awk '{print $3}'| grep vcpkg  | sed 's|\\|/|g' | xargs -I{} cp -u {} .
           mkdir tls

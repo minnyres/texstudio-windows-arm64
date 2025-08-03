@@ -1,7 +1,11 @@
+
+
 # texstudio-windows-arm64
 TeXstudio is a fully featured LaTeX editor. This repository distributes TeXstudio binaries for Windows on ARM64 (WoA).
 
-Please go to [releases](https://github.com/minnyres/texstudio-windows-arm64/releases) for the downloads.
+~~Please go to [releases](https://github.com/minnyres/texstudio-windows-arm64/releases) for the downloads.~~
+
+The latest Windows Arm64 builds are published at https://github.com/texstudio-org/texstudio/releases
 
 ## How to build
 
